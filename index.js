@@ -1,10 +1,10 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const PDFDocument = require('pdfkit');
+const PDFDocument = require('pdfkit'); // Importe a biblioteca pdfkit
 const fs = require('fs');
 const app = express();
-const port = 3003;
+const port = 3000;
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -18,6 +18,8 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 const { parseISO, format } = require('date-fns'); 
 
+
+// Configuração do MongoDB usando Mongoose
 const mongoose = require('mongoose');
 mongoose.connect('mongodb+srv://lucaslcs127:root@clusterdk.4joqwuj.mongodb.net/test', {
   useNewUrlParser: true,
@@ -27,24 +29,27 @@ mongoose.connect('mongodb+srv://lucaslcs127:root@clusterdk.4joqwuj.mongodb.net/t
 const PlacaSchema = new mongoose.Schema({
   numeroPlaca: String,
   cidade: String,
-  dataHora: String,
+  dataHora: String, // Armazenar a data como uma string formatada
 });
 
 const Placa = mongoose.model('Placa', PlacaSchema);
 
 app.use(express.json());
 
-// Rota para servir o frontend React
-app.use(express.static(path.join(__dirname, 'frontend', 'build')));
+// Rota para a página HTML
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/index.html');
+});
 
 // Rota para o upload da imagem
-app.post('/cadastroPlaca', async (req, res) => {
+app.post('/cadastroPlaca', upload.single('imagem'), async (req, res) => {
   try {
-    const { cidade, imagemLink } = req.body; // Agora você espera "cidade" e "imagemLink" no corpo da solicitação
+    const { cidade } = req.body;
+    const imagemPath = req.file.path;
 
     // Usar Tesseract.js para reconhecimento de caracteres na imagem
     const Tesseract = require('tesseract.js');
-    const { data: { text } } = await Tesseract.recognize(imagemLink); // Agora você usa o "imagemLink" diretamente
+    const { data: { text } } = await Tesseract.recognize(imagemPath);
 
     // Remover espaços em branco e caracteres de nova linha do número da placa
     const numeroPlacaLimpo = text.replace(/\s+/g, '');
@@ -64,7 +69,6 @@ app.post('/cadastroPlaca', async (req, res) => {
     res.status(500).json({ message: 'Ocorreu um erro ao processar a placa' });
   }
 });
-
 
 
 //Rota para retornar em PDF os dados de uma cidade passada em parametro , tente testar com "juazeiro" como parametro
