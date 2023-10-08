@@ -7,10 +7,21 @@ const fs = require('fs');
 const app = express();
 const port = 3000;
 
-app.use(cors({
-  origin: ['https://front-end-placas.vercel.app/relatorio/cidade/', 'https://front-end-placas.vercel.app/','https://front-end-placas.vercel.app/consulta'], // Permita solicitações apenas dessas origens
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Permita os métodos HTTP desejados
-}));
+
+app.use(express.json());
+
+// Aplicar CORS nas rotas específicas
+const corsOptions = {
+  origin: [
+    'https://front-end-placas.vercel.app',
+    'https://webiinodedeployapi.onrender.com',
+  ],
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+};
+
+app.use('/cadastroPlaca', cors(corsOptions));
+app.use('/relatorio/cidade/:cidade', cors(corsOptions));
+app.use('/consulta/:placa', cors(corsOptions));
 
 
 const storage = multer.diskStorage({
