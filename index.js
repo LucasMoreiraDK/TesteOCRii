@@ -1,10 +1,17 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const PDFDocument = require('pdfkit'); // Importe a biblioteca pdfkit
+const PDFDocument = require('pdfkit'); 
+const cors = require('cors');
 const fs = require('fs');
 const app = express();
 const port = 3000;
+
+app.use(cors({
+  origin: ['https://front-end-placas.vercel.app/relatorio/cidade/', 'https://front-end-placas.vercel.app/','https://front-end-placas.vercel.app/consulta'], // Permita solicitações apenas dessas origens
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Permita os métodos HTTP desejados
+}));
+
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
