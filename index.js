@@ -5,6 +5,14 @@ const PDFDocument = require('pdfkit');
 const cors = require('cors');
 const fs = require('fs');
 const app = express();
+const jwt = require('jsonwebtoken');
+const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const MongoClient = require('mongodb').MongoClient;
+
+
 const port = 3000;
 
 
@@ -24,6 +32,31 @@ app.use('/relatorio/cidade/:cidade', cors(corsOptions));
 app.use('/consulta/:placa', cors(corsOptions));
 
 
+const uri = "mongodb+srv://lucaslcs127:root@clusterdk.4joqwuj.mongodb.net/test";
+const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+
+// Variável global para armazenar os tokens
+let tokensList = [];
+let tokenNow = "";
+
+// Função para buscar e armazenar os tokens na variável global
+async function getTokens() {
+  try {
+    await client.connect();
+    const database = client.db('test');
+    const collection = database.collection('tokens');
+
+    const tokens = await collection.find({}).toArray();
+    tokensList = tokens.map(token => token.token);
+
+    console.log('Tokens recuperados com sucesso:', tokensList);
+  } catch (err) {
+    console.error('Erro ao recuperar os tokens:', err);
+  } finally {
+    client.close();
+  }
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
@@ -38,7 +71,6 @@ const { parseISO, format } = require('date-fns');
 
 
 // Configuração do MongoDB usando Mongoose
-const mongoose = require('mongoose');
 mongoose.connect('mongodb+srv://lucaslcs127:root@clusterdk.4joqwuj.mongodb.net/test', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -62,6 +94,9 @@ app.get('/', (req, res) => {
 // Rota para o upload da imagem
 app.post('/cadastroPlaca', upload.single('imagem'), async (req, res) => {
   try {
+    if (controlador !== 1) {
+      return res.status(401).json({ message: 'Acesso não autorizado' });
+    }
     const { cidade } = req.body;
     const imagemPath = req.file.path;
 
@@ -92,6 +127,9 @@ app.post('/cadastroPlaca', upload.single('imagem'), async (req, res) => {
 //Rota para retornar em PDF os dados de uma cidade passada em parametro , tente testar com "juazeiro" como parametro
 app.get('/relatorio/cidade/:cidade', async (req, res) => {
   try {
+    if (controlador !== 1) {
+      return res.status(401).json({ message: 'Acesso não autorizado' });
+    }
     const cidade = req.params.cidade;
 
     // Consulte o banco de dados para obter registros com a cidade especificada
@@ -131,6 +169,10 @@ app.get('/relatorio/cidade/:cidade', async (req, res) => {
 //Rota para consultar placas
 app.get('/consulta/:placa', async (req, res) => {
   try {
+    if (controlador !== 1) {
+      return res.status(401).json({ message: 'Acesso não autorizado' });
+    }
+
     const placa = req.params.placa;
 
     // Consulte o banco de dados para verificar se a placa existe
@@ -149,6 +191,118 @@ app.get('/consulta/:placa', async (req, res) => {
   }
 });
 
+
+//logim e cadastro:
+let controlador = 0;
+// Define um modelo (schema) para os usuários
+const User = mongoose.model('User', {
+  email: String,
+  senha: String,
+});
+
+// Rota POST para cadastro de usuário
+app.post('/cadastro', async (req, res) => {
+  try {
+    const { email, senha } = req.body;
+
+    // Verifica se o email já está cadastrado
+    const userExists = await User.findOne({ email });
+
+    if (userExists) {
+      // Se o email já estiver em uso, retorna um erro
+      return res.status(400).json({ message: 'Email já cadastrado' });
+    }
+
+    // Criptografa a senha usando o bcrypt antes de armazená-la
+    const hashedPassword = bcrypt.hashSync(senha, 10);
+
+    // Cria um novo usuário no banco de dados usando o modelo User
+    const newUser = new User({ email, senha: hashedPassword });
+    await newUser.save();
+
+    // Retorna uma resposta de sucesso
+    res.status(201).json({ message: 'Usuário cadastrado com sucesso' });
+  } catch (error) {
+    res.status(500).json({ message: 'Erro no servidor' });
+  }
+});
+
+//model do token ao logim 
+const Token = mongoose.model('Token', {
+  email: String,
+  token: String,
+});
+
+
+// Rota POST para login
+app.post('/login', async (req, res) => {
+  try {
+    const { email, senha } = req.body;
+
+    // Verifica se o email existe no banco de dados
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({ message: 'Dados incorretos' });
+      controlador = 0;
+    }
+
+    // Verifica se a senha fornecida corresponde à senha no banco de dados
+    const passwordMatch = bcrypt.compareSync(senha, user.senha);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Dados incorretos' });
+      controlador = 0;
+    }
+
+    // Gera um token aleatório
+    const token = crypto.randomBytes(64).toString('hex');
+
+    // Salva o token na coleção "tokens" no MongoDB
+    const tokenDocument = new Token({ email: user.email, token });
+    await tokenDocument.save();
+
+    tokenNow = token;
+    controlador = 1;
+   
+
+    // Retorna o token como resposta
+    res.json({ token });
+  } catch (error) {
+    res.status(500).json({ message: 'Erro no servidor' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
+  
+});
+
+
+
+
+
+async function checkTokenInCollection(token) {
+  try {
+    await client.connect();
+
+    const database = client.db('test'); // Substitua 'seu_database' pelo nome do seu banco de dados
+    const collection = database.collection('tokens');
+
+    const tokenDocument = await collection.findOne({ token: token });
+
+    if (tokenDocument) {
+      console.log('O token está na coleção.');
+      controlador = 1;
+    } else {
+      console.log('O token não foi encontrado na coleção.');
+      controlador = 0;
+    }
+  } finally {
+    await client.close();
+  }
+}
+
+checkTokenInCollection(tokenNow).then(() => {
+  console.log(controlador);
 });
