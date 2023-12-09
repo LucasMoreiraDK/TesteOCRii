@@ -12,6 +12,16 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const MongoClient = require('mongodb').MongoClient;
 
+/*
+Para testar alguma rota localmente, após dar um "node index.js", use o JSON para a rota POST "http://localhost:3000/login":
+
+{
+  "email": "lucashhj@exa4mple.coms",
+  "senha": "minhasenhhjhja2041s"
+}
+*/
+
+
 
 const port = 3000;
 
@@ -191,6 +201,30 @@ app.get('/consulta/:placa', async (req, res) => {
   }
 });
 
+//ddd
+app.get('/temperatura', async (req, res) => {
+  fetch('https://api.thingspeak.com/channels/2373827/feeds.json?results')
+    .then(response => response.json())
+    .then(data => {
+      
+      const feeds = data.feeds;
+      if (feeds && feeds.length > 0) {
+        const latestEntry = feeds[feeds.length - 1];
+        const temp = latestEntry.field1;
+        console.log('A temperatura atual é:', temp);
+        res.status(200).json({
+          message: 'A temperatura atual é:',
+          temp
+        });
+        
+      } else {
+        console.log('Nenhuma entrada encontrada.');
+      }
+    })
+    .catch(error => {
+      console.error('Ocorreu um erro:', error);
+    });
+});
 
 //logim e cadastro:
 let controlador = 0;
