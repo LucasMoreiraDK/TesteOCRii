@@ -11,7 +11,8 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const MongoClient = require('mongodb').MongoClient;
-const fetch = require('node-fetch');
+const fetch = require('isomorphic-fetch');
+
 
 /*
 Para testar alguma rota localmente, após dar um "node index.js", use o JSON para a rota POST "http://localhost:3000/login":
