@@ -203,7 +203,7 @@ app.get('/consulta/:placa', async (req, res) => {
   }
 });
 
-//ddd
+//Temperatura
 app.get('/temperatura', async (req, res) => {
   try {
     const response = await fetch('https://api.thingspeak.com/channels/2373827/feeds.json?results');
@@ -233,6 +233,36 @@ app.get('/temperatura', async (req, res) => {
   }
 });
 
+//Luminosidade
+app.get('/Luminosidade', async (req, res) => {
+  try {
+    const response = await fetch('https://api.thingspeak.com/channels/2378150/feeds.json?results');
+
+    if (!response.ok) {
+      throw new Error('Não foi possível obter os dados da API.');
+    }
+
+    const data = await response.json();
+    const feeds = data.feeds;
+
+    if (feeds && feeds.length > 0) {
+      const latestEntry = feeds[feeds.length - 1];
+      const lux = latestEntry.field1;
+      console.log('A Luminosidade atual é:', lux);
+      res.status(200).json({
+        message: 'A Luminosidade atual é:',
+        lux
+      });
+    } else {
+      console.log('Nenhuma entrada encontrada.');
+      res.status(404).json({ error: 'Nenhuma entrada encontrada.' });
+    }
+  } catch (error) {
+    console.error('Ocorreu um erro:', error);
+    res.status(500).json({ error: 'Ocorreu um erro ao processar a requisição.' });
+  }
+});
+//---
 
 //logim e cadastro:
 let controlador = 0;
